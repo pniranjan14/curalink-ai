@@ -56,6 +56,14 @@ WSGI_APPLICATION = 'curalink.wsgi.application'
 
 # Database Configuration
 # Fallback to SQLite locally, use DATABASE_URL (Supabase) in production
+db_url = os.getenv('DATABASE_URL')
+
+# Safety check for common formatting issues in Supabase/Render URLs
+if db_url and '[' in db_url and ']' in db_url and '@' in db_url:
+    # This often means the user has a password like [pass] or a placeholder like [YOUR-PASSWORD]
+    # which urllib.parse.urlsplit misinterprets as an invalid IPv6 host.
+    pass
+
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
