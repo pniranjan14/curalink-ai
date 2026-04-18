@@ -5,8 +5,8 @@
 
 **Research-backed. Hallucination-free. Real-time.**
 
-[![Live Demo](https://curalink-ai-nu.vercel.app/)](YOUR_DEPLOYED_URL)
-[![Demo Video](https://www.loom.com/share/5e4204238d814b0fa52a4b3d4ebc81c4)](YOUR_LOOM_LINK)
+[![Live Demo](https://curalink-ai-nu.vercel.app/)
+[![Demo Video](https://www.loom.com/share/5e4204238d814b0fa52a4b3d4ebc81c4)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python)
 ![Django](https://img.shields.io/badge/Django-4.2-092E20?style=for-the-badge&logo=django)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)
