@@ -101,7 +101,7 @@ accurate, and research-backed response to the user's query.
                 max_tokens=1024,
             )
             return chat_completion.choices[0].message.content
-        else:
+        elif ollama:
             # Ollama implementation
             response = ollama.chat(
                 model=model,
@@ -112,6 +112,9 @@ accurate, and research-backed response to the user's query.
                 }
             )
             return response['message']['content']
+        else:
+            print("LLM Error: No valid LLM client (Groq or Ollama) available.")
+            return _fallback_response(disease, publications, trials)
 
     except Exception as e:
         print(f"LLM Error ({'Groq' if client else 'Ollama'}): {e}")
@@ -139,7 +142,7 @@ JSON:"""
                 response_format={"type": "json_object"}
             )
             return json.loads(chat_completion.choices[0].message.content)
-        else:
+        elif ollama:
             response = ollama.generate(
                 model=model,
                 prompt=prompt,
@@ -148,6 +151,8 @@ JSON:"""
             text = response['response'].strip()
             text = text.replace("```json", "").replace("```", "").strip()
             return json.loads(text)
+        else:
+            return {"disease": user_message, "location": ""}
     except Exception as e:
         print(f"Extraction Error: {e}")
         return {"disease": user_message, "location": ""}
