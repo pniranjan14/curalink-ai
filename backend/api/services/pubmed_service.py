@@ -7,10 +7,15 @@ def search_pubmed(disease: str, location: str = "", max_results: int = 50) -> li
     Search PubMed for research publications related to disease + location.
     Returns list of article metadata dicts.
     """
-    PUBMED_BASE = settings.PUBMED_BASE_URL
+    PUBMED_BASE = getattr(settings, 'PUBMED_BASE_URL', 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils')
+    headers = {'User-Agent': getattr(settings, 'DEFAULT_USER_AGENT', 'CuraLink/1.0')}
+    
     query = f"{disease}"
     if location:
         query += f" {location}"
+
+    if not disease or len(disease) < 2:
+        return []
 
     # Step 1: Get IDs
     search_url = f"{PUBMED_BASE}/esearch.fcgi"
@@ -23,11 +28,12 @@ def search_pubmed(disease: str, location: str = "", max_results: int = 50) -> li
     }
 
     try:
-        search_resp = requests.get(search_url, params=search_params, timeout=15)
+        search_resp = requests.get(search_url, params=search_params, headers=headers, timeout=15)
         search_resp.raise_for_status()
-        ids = search_resp.json()["esearchresult"]["idlist"]
+        resp_json = search_resp.json()
+        ids = resp_json.get("esearchresult", {}).get("idlist", [])
     except Exception as e:
-        print(f"PubMed search error: {e}")
+        print(f"PubMed search error for query '{query}': {e}")
         return []
 
     if not ids:
@@ -42,7 +48,7 @@ def search_pubmed(disease: str, location: str = "", max_results: int = 50) -> li
     }
 
     try:
-        summary_resp = requests.get(summary_url, params=summary_params, timeout=15)
+        summary_resp = requests.get(summary_url, params=summary_params, headers=headers, timeout=15)
         summary_resp.raise_for_status()
         result_data = summary_resp.json().get("result", {})
     except Exception as e:
@@ -69,7 +75,9 @@ def search_pubmed(disease: str, location: str = "", max_results: int = 50) -> li
 
 def fetch_abstract(pubmed_id: str) -> str:
     """Fetch abstract text for a single PubMed article."""
-    PUBMED_BASE = settings.PUBMED_BASE_URL
+    PUBMED_BASE = getattr(settings, 'PUBMED_BASE_URL', 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils')
+    headers = {'User-Agent': getattr(settings, 'DEFAULT_USER_AGENT', 'CuraLink/1.0')}
+    
     fetch_url = f"{PUBMED_BASE}/efetch.fcgi"
     params = {
         "db": "pubmed",
@@ -78,7 +86,7 @@ def fetch_abstract(pubmed_id: str) -> str:
         "retmode": "text",
     }
     try:
-        resp = requests.get(fetch_url, params=params, timeout=10)
+        resp = requests.get(fetch_url, params=params, headers=headers, timeout=10)
         return resp.text.strip()
     except:
         return ""

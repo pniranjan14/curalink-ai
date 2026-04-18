@@ -93,8 +93,7 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in debug/local mode
-CORS_ALLOWED_ORIGINS = [o.strip().rstrip('/') for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()] if not DEBUG else []
+CORS_ALLOW_ALL_ORIGINS = True  # Relaxed for troubleshooting frontend connection
 CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework
@@ -111,6 +110,9 @@ OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
 OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'mistral')
 
 # External APIs
-PUBMED_BASE_URL = os.getenv('PUBMED_BASE_URL')
-OPENALEX_BASE_URL = os.getenv('OPENALEX_BASE_URL')
-CLINICALTRIALS_BASE_URL = os.getenv('CLINICALTRIALS_BASE_URL')
+PUBMED_BASE_URL = os.getenv('PUBMED_BASE_URL', 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils')
+OPENALEX_BASE_URL = os.getenv('OPENALEX_BASE_URL', 'https://api.openalex.org')
+CLINICALTRIALS_BASE_URL = os.getenv('CLINICALTRIALS_BASE_URL', 'https://clinicaltrials.gov/api/v2')
+
+# Extra Security: Add User-Agent for server-to-server calls
+DEFAULT_USER_AGENT = 'CuraLink/1.0 (https://curalink.app; medical.research@curalink.app)'

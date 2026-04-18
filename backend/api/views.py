@@ -10,6 +10,7 @@ from .services.clinicaltrials_service import search_clinical_trials
 from .services.ranking_service import rank_publications, rank_trials
 from .services.llm_service import generate_response, extract_disease_and_location
 import uuid
+import re
 from concurrent.futures import ThreadPoolExecutor
 
 class ChatView(APIView):
@@ -36,15 +37,44 @@ class ChatView(APIView):
                 for msg in conversation.messages.all()
             ]
 
-            # Extract or update disease/location
+            # SMART BYPASS: Recognize greetings or very short non-medical messages
+            greetings = ['hi', 'hello', 'hey', 'thanks', 'thank you', 'how are you', 'what can you do']
+            msg_clean = re.sub(r'[^\w\s]', '', user_message.lower()).strip()
+            
+            is_simple_greeting = msg_clean in greetings or len(msg_clean.split()) < 3
+            
+            # If it's a greeting and we don't have a disease yet, skip extraction and research
+            if is_simple_greeting and not conversation.disease:
+                llm_response = generate_response(
+                    user_message=user_message,
+                    conversation_history=history,
+                    publications=[],
+                    trials=[],
+                    disease="",
+                    location="",
+                )
+                Message.objects.create(conversation=conversation, role='user', content=user_message)
+                Message.objects.create(conversation=conversation, role='assistant', content=llm_response)
+                
+                return Response({
+                    'session_id': str(conversation.session_id),
+                    'response': llm_response,
+                    'publications': [],
+                    'trials': [],
+                    'disease': "",
+                    'location': "",
+                })
+
+            # Extraction/Update logic (only if not a simple greeting)
             if not conversation.disease:
                 extracted = extract_disease_and_location(user_message)
                 conversation.disease = extracted.get('disease', user_message)
                 conversation.location = extracted.get('location', '')
                 conversation.save()
             else:
-                # Check if user is updating disease/location
-                if any(kw in user_message.lower() for kw in ['disease', 'condition', 'diagnosed', 'located', 'city', 'country']):
+                # Check for explicit condition updates
+                medical_keywords = ['disease', 'condition', 'diagnosed', 'located', 'city', 'country']
+                if any(kw in user_message.lower() for kw in medical_keywords):
                     extracted = extract_disease_and_location(user_message)
                     if extracted.get('disease'):
                         conversation.disease = extracted['disease']
@@ -55,33 +85,32 @@ class ChatView(APIView):
             disease = conversation.disease
             location = conversation.location
 
-            # Fetch research data in parallel to save time
+            # Fetch research data in parallel
             pubmed_results = []
             openalex_results = []
             trial_results = []
 
-            try:
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    future_pubmed = executor.submit(search_pubmed, disease, location, max_results=20)
-                    future_openalex = executor.submit(search_openalex, disease, location, max_results=20)
-                    future_trials = executor.submit(search_clinical_trials, disease, location, max_results=20)
-                    
-                    try:
-                        pubmed_results = future_pubmed.result(timeout=15)
-                    except Exception as e:
-                        print(f"PubMed Error: {e}")
-                    
-                    try:
-                        openalex_results = future_openalex.result(timeout=15)
-                    except Exception as e:
-                        print(f"OpenAlex Error: {e}")
-                    
-                    try:
-                        trial_results = future_trials.result(timeout=15)
-                    except Exception as e:
-                        print(f"ClinicalTrials Error: {e}")
-            except Exception as e:
-                print(f"Global ThreadPool Error: {e}")
+            # Only search if we have a halfway decent disease query
+            if disease and len(disease) > 2:
+                try:
+                    with ThreadPoolExecutor(max_workers=3) as executor:
+                        future_pubmed = executor.submit(search_pubmed, disease, location, max_results=20)
+                        future_openalex = executor.submit(search_openalex, disease, location, max_results=20)
+                        future_trials = executor.submit(search_clinical_trials, disease, location, max_results=20)
+                        
+                        try:
+                            pubmed_results = future_pubmed.result(timeout=15)
+                        except: pass
+                        
+                        try:
+                            openalex_results = future_openalex.result(timeout=15)
+                        except: pass
+                        
+                        try:
+                            trial_results = future_trials.result(timeout=15)
+                        except: pass
+                except Exception as e:
+                    print(f"Global ThreadPool Error: {e}")
 
             # Combine & Rank
             all_publications = pubmed_results + openalex_results

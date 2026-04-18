@@ -1,59 +1,46 @@
 import requests
+import os
 from django.conf import settings
 
 def search_openalex(disease: str, location: str = "", max_results: int = 50) -> list:
     """
-    Search OpenAlex for open-access research works related to the disease.
+    Search OpenAlex for medical research papers.
     """
-    OPENALEX_BASE = settings.OPENALEX_BASE_URL
+    OPENALEX_BASE = getattr(settings, 'OPENALEX_BASE_URL', 'https://api.openalex.org')
+    headers = {'User-Agent': getattr(settings, 'DEFAULT_USER_AGENT', 'CuraLink/1.0')}
+    
     query = f"{disease}"
     if location:
-        query += f" {location}"
+        query += f", {location}"
 
-    url = f"{OPENALEX_BASE}/works"
+    if not disease or len(disease) < 2:
+        return []
+
     params = {
         "search": query,
-        "per-page": max_results,
-        "sort": "relevance_score:desc",
-        "filter": "is_oa:true",   # only open access
-        "select": "id,title,authorships,publication_year,primary_location,abstract_inverted_index,doi",
+        "per_page": max_results,
+        "filter": "type:article",
     }
 
     try:
-        resp = requests.get(url, params=params, timeout=15)
-        resp.raise_for_status()
-        works = resp.json().get("results", [])
+        response = requests.get(f"{OPENALEX_BASE}/works", params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
     except Exception as e:
         print(f"OpenAlex error: {e}")
         return []
 
-    results = []
-    for work in works:
-        authors = [
-            a.get("author", {}).get("display_name", "")
-            for a in work.get("authorships", [])
-        ]
-        location_info = work.get("primary_location") or {}
-        source = location_info.get("source") or {}
-        results.append({
+    articles = []
+    for work in data.get("results", []):
+        articles.append({
             "source": "OpenAlex",
-            "id": work.get("id", ""),
-            "title": work.get("title", "No title"),
-            "authors": authors,
-            "journal": source.get("display_name", ""),
-            "pubdate": str(work.get("publication_year", "")),
-            "abstract": _reconstruct_abstract(work.get("abstract_inverted_index", {})),
-            "url": work.get("doi", work.get("id", "")),
+            "id": work.get("id"),
+            "title": work.get("display_name", "No title"),
+            "authors": [a.get("author", {}).get("display_name") for a in work.get("authorships", [])],
+            "journal": work.get("primary_location", {}).get("source", {}).get("display_name", ""),
+            "pubdate": work.get("publication_date", ""),
+            "abstract": "",  # OpenAlex uses inverted index for abstracts, complex to reconstruct
+            "url": work.get("doi") or work.get("id"),
         })
 
-    return results
-
-def _reconstruct_abstract(inverted_index: dict) -> str:
-    """OpenAlex stores abstracts as inverted index — reconstruct to string."""
-    if not inverted_index:
-        return ""
-    positions = {}
-    for word, pos_list in inverted_index.items():
-        for pos in pos_list:
-            positions[pos] = word
-    return " ".join(positions[k] for k in sorted(positions.keys()))
+    return articles
