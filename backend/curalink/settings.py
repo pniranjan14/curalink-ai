@@ -94,7 +94,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in debug/local mode
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()] if not DEBUG else []
+CORS_ALLOWED_ORIGINS = [o.strip().rstrip('/') for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()] if not DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework

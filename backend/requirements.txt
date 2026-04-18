@@ -12,11 +12,3 @@ whitenoise==6.7.0
 scipy==1.17.1
 numpy==1.26.4
 rank-bm25==0.2.2
-
-# Ranking Service (Semantic Search)
-# Using CPU-only torch to minimize build size on Render
-# Note: Using --extra-index-url so PyPI is still searched for other packages
-transformers==4.42.3
-sentence-transformers==3.0.1
-numpy==1.26.4
-scikit-learn==1.5.0
