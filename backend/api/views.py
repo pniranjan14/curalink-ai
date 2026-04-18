@@ -66,21 +66,20 @@ class ChatView(APIView):
                 })
 
             # Extraction/Update logic (only if not a simple greeting)
-            if not conversation.disease:
-                extracted = extract_disease_and_location(user_message)
-                conversation.disease = extracted.get('disease', user_message)
-                conversation.location = extracted.get('location', '')
+            # Re-extract disease/location to see if the user has shifted context
+            extracted = extract_disease_and_location(user_message)
+            
+            new_disease = extracted.get('disease')
+            new_location = extracted.get('location')
+
+            # Update if it's a valid new disease or if we don't have one yet
+            if new_disease and new_disease.lower() != "none" and new_disease.lower() != conversation.disease.lower():
+                conversation.disease = new_disease
                 conversation.save()
-            else:
-                # Check for explicit condition updates
-                medical_keywords = ['disease', 'condition', 'diagnosed', 'located', 'city', 'country']
-                if any(kw in user_message.lower() for kw in medical_keywords):
-                    extracted = extract_disease_and_location(user_message)
-                    if extracted.get('disease'):
-                        conversation.disease = extracted['disease']
-                    if extracted.get('location'):
-                        conversation.location = extracted['location']
-                    conversation.save()
+            
+            if new_location and new_location.lower() != "none" and new_location.lower() != conversation.location.lower():
+                conversation.location = new_location
+                conversation.save()
 
             disease = conversation.disease
             location = conversation.location
