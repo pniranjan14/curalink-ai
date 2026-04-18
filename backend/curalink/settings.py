@@ -11,10 +11,6 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,*').split(',') if h.strip()]
 
-# Debug log for Render
-print(f"DEBUG: BASE_DIR = {BASE_DIR}")
-print(f"DEBUG: STATIC_ROOT will be = {os.path.join(BASE_DIR, 'staticfiles')}")
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -94,7 +90,6 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
-print(f"DEBUG: STATIC_ROOT is set to: {STATIC_ROOT}")
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Settings

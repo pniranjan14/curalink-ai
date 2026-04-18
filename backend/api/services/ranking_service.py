@@ -1,45 +1,37 @@
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+from rank_bm25 import BM25Okapi
+import re
 
-# Load once at module level (cached in memory)
-_model = None
-
-def get_model():
-    global _model
-    if _model is None:
-        # Load a lightweight, fast model
-        _model = SentenceTransformer('all-MiniLM-L6-v2')
-    return _model
+def tokenize(text):
+    """Simple tokenizer for BM25."""
+    return re.findall(r'\w+', text.lower())
 
 def rank_publications(query: str, publications: list, top_k: int = 8) -> list:
     """
-    Rank publications by semantic similarity to the user query.
-    Returns top_k most relevant publications.
+    Rank publications using BM25 keyword matching.
+    Much lighter and faster than semantic models on limited CPUs.
     """
     if not publications:
         return []
 
-    model = get_model()
-
-    # Build text representation for each publication
-    pub_texts = []
+    # Prepare corpus for BM25
+    corpus = []
     for pub in publications:
         text = f"{pub.get('title', '')} {pub.get('abstract', '')} {pub.get('journal', '')}"
-        pub_texts.append(text.strip())
+        corpus.append(tokenize(text))
 
-    # Encode query and documents
-    query_embedding = model.encode([query])
-    doc_embeddings = model.encode(pub_texts)
+    if not corpus:
+        return publications[:top_k]
 
-    # Compute cosine similarities
-    similarities = cosine_similarity(query_embedding, doc_embeddings)[0]
-
+    bm25 = BM25Okapi(corpus)
+    tokenized_query = tokenize(query)
+    
+    # Get scores
+    scores = bm25.get_scores(tokenized_query)
+    
     # Attach scores and sort
-    scored = list(zip(publications, similarities))
+    scored = list(zip(publications, scores))
     scored.sort(key=lambda x: x[1], reverse=True)
 
-    # Return top_k with score attached
     results = []
     for pub, score in scored[:top_k]:
         pub_copy = dict(pub)
@@ -49,22 +41,24 @@ def rank_publications(query: str, publications: list, top_k: int = 8) -> list:
     return results
 
 def rank_trials(query: str, trials: list, top_k: int = 5) -> list:
-    """Rank clinical trials by relevance to query."""
+    """Rank clinical trials using BM25 keyword matching."""
     if not trials:
         return []
 
-    model = get_model()
-
-    trial_texts = []
+    corpus = []
     for trial in trials:
         text = f"{trial.get('title', '')} {trial.get('summary', '')} {trial.get('phase', '')}"
-        trial_texts.append(text.strip())
+        corpus.append(tokenize(text))
 
-    query_embedding = model.encode([query])
-    doc_embeddings = model.encode(trial_texts)
-    similarities = cosine_similarity(query_embedding, doc_embeddings)[0]
+    if not corpus:
+        return trials[:top_k]
 
-    scored = list(zip(trials, similarities))
+    bm25 = BM25Okapi(corpus)
+    tokenized_query = tokenize(query)
+    
+    scores = bm25.get_scores(tokenized_query)
+    
+    scored = list(zip(trials, scores))
     scored.sort(key=lambda x: x[1], reverse=True)
 
     results = []

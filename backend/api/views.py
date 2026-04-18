@@ -9,6 +9,7 @@ from .services.clinicaltrials_service import search_clinical_trials
 from .services.ranking_service import rank_publications, rank_trials
 from .services.llm_service import generate_response, extract_disease_and_location
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 class ChatView(APIView):
     """Main chat endpoint — processes user message and returns research-backed response."""
@@ -52,10 +53,15 @@ class ChatView(APIView):
         disease = conversation.disease
         location = conversation.location
 
-        # Fetch research data
-        pubmed_results = search_pubmed(disease, location, max_results=50)
-        openalex_results = search_openalex(disease, location, max_results=50)
-        trial_results = search_clinical_trials(disease, location, max_results=30)
+        # Fetch research data in parallel to save time
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_pubmed = executor.submit(search_pubmed, disease, location, max_results=20)
+            future_openalex = executor.submit(search_openalex, disease, location, max_results=20)
+            future_trials = executor.submit(search_clinical_trials, disease, location, max_results=20)
+            
+            pubmed_results = future_pubmed.result()
+            openalex_results = future_openalex.result()
+            trial_results = future_trials.result()
 
         # Combine & Rank
         all_publications = pubmed_results + openalex_results
