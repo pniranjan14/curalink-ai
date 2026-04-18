@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import connection
 from .models import Conversation, Message
 from .serializers import ChatRequestSerializer
 from .services.pubmed_service import search_pubmed
@@ -140,7 +141,18 @@ class ConversationHistoryView(APIView):
         })
 
 class HealthCheckView(APIView):
-    """Simple health check endpoint."""
+    """Simple health check endpoint with database validation."""
 
     def get(self, request):
-        return Response({'status': 'ok', 'service': 'CuraLink API'})
+        db_status = "unknown"
+        try:
+            connection.ensure_connection()
+            db_status = "connected"
+        except Exception as e:
+            db_status = f"error: {str(e)}"
+            
+        return Response({
+            'status': 'ok', 
+            'service': 'CuraLink API',
+            'database': db_status
+        })
