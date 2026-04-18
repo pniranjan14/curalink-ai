@@ -1,4 +1,7 @@
-import ollama
+try:
+    import ollama
+except ImportError:
+    ollama = None
 from groq import Groq
 import json
 from django.conf import settings
